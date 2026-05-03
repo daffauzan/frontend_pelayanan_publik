@@ -36,6 +36,54 @@ const getStatusBadgeClass = (status) => {
   return 'text-bg-warning';
 };
 
+const isTrackingItem = (item) => {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  const hasReferenceId = 'ReferenceID' in item || 'reference_id' in item;
+  const hasStatus = 'Status' in item || 'status' in item;
+  return hasReferenceId && hasStatus;
+};
+
+const extractTrackingList = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const candidateKeys = ['data', 'tracking', 'trackings', 'items', 'results', 'records'];
+
+  for (const key of candidateKeys) {
+    if (!(key in payload)) {
+      continue;
+    }
+
+    const value = payload[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (value && typeof value === 'object') {
+      const nested = extractTrackingList(value);
+      if (nested.length > 0) {
+        return nested;
+      }
+    }
+  }
+
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value) && value.some(isTrackingItem)) {
+      return value;
+    }
+  }
+
+  return [];
+};
+
 const AdminTrackingPage = () => {
   const [tracking, setTracking] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,8 +94,19 @@ const AdminTrackingPage = () => {
     setMessage('');
 
     try {
-      const response = await trackingService.getAllAdmin();
-      const data = Array.isArray(response) ? response : (response?.data ?? []);
+      const adminResponse = await trackingService.getAllAdmin();
+      let data = extractTrackingList(adminResponse);
+
+      if (data.length === 0) {
+        const userResponse = await trackingService.getAll();
+        data = extractTrackingList(userResponse);
+      }
+
+      if (data.length === 0) {
+        const historyResponse = await trackingService.getHistory();
+        data = extractTrackingList(historyResponse);
+      }
+
       setTracking(data);
     } catch (error) {
       console.error('Gagal memuat data tracking:', error);

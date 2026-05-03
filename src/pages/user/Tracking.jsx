@@ -36,22 +36,124 @@ const getStatusBadgeClass = (status) => {
   return 'text-bg-warning';
 };
 
+const isTrackingItem = (item) => {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  const hasReferenceId = 'ReferenceID' in item || 'reference_id' in item;
+  const hasStatus = 'Status' in item || 'status' in item;
+  return hasReferenceId && hasStatus;
+};
+
+const extractTrackingList = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const candidateKeys = ['data', 'tracking', 'trackings', 'items', 'results', 'records'];
+
+  for (const key of candidateKeys) {
+    if (!(key in payload)) {
+      continue;
+    }
+
+    const value = payload[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (value && typeof value === 'object') {
+      const nested = extractTrackingList(value);
+      if (nested.length > 0) {
+        return nested;
+      }
+    }
+  }
+
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value) && value.some(isTrackingItem)) {
+      return value;
+    }
+  }
+
+  return [];
+};
+
 const TrackingPage = () => {
   const [tracking, setTracking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
+  const tryLoadFrom = async (fetcher) => {
+    const response = await fetcher();
+    return extractTrackingList(response);
+  };
+
   const loadTracking = async () => {
     setLoading(true);
     setMessage('');
 
+    let lastError = null;
+
     try {
-      const response = await trackingService.getAll();
-      const data = Array.isArray(response) ? response : (response?.data ?? []);
+      let data = [];
+
+      try {
+        const [suratRes, pengaduanRes] = await Promise.all([
+          trackingService.getByServiceType('surat'),
+          trackingService.getByServiceType('pengaduan'),
+        ]);
+
+        const suratData = extractTrackingList(suratRes);
+        const pengaduanData = extractTrackingList(pengaduanRes);
+        data = [...suratData, ...pengaduanData]
+          .filter((item) => item && (item.ID || item.id))
+          .sort((a, b) => {
+            const dateA = new Date(a.CreatedAt || a.created_at || 0).getTime();
+            const dateB = new Date(b.CreatedAt || b.created_at || 0).getTime();
+            return dateA - dateB;
+          });
+      } catch (error) {
+        lastError = error;
+      }
+
+      if (data.length === 0) {
+        try {
+          data = await tryLoadFrom(trackingService.getAll);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (data.length === 0) {
+        try {
+          data = await tryLoadFrom(trackingService.getHistory);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
       setTracking(data);
+
+      if (data.length === 0 && lastError) {
+        const backendMessage =
+          lastError.response?.data?.message ||
+          lastError.response?.data?.error ||
+          'Data tracking belum tersedia.';
+        setMessage(backendMessage);
+      }
     } catch (error) {
       console.error('Gagal memuat data tracking user:', error);
-      setMessage(error.response?.data?.message || 'Gagal memuat data tracking.');
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Gagal memuat data tracking.';
+      setMessage(backendMessage);
     } finally {
       setLoading(false);
     }

@@ -6,9 +6,32 @@ const trackingService = {
     return response.data;
   },
 
-  getAllAdmin: async () => {
-    const response = await api.get('/admin/tracking');
+  getByServiceType: async (serviceType) => {
+    const normalized = String(serviceType || '').toLowerCase().trim();
+    if (normalized !== 'surat' && normalized !== 'pengaduan') {
+      throw new Error('service_type tidak valid');
+    }
+
+    const response = await api.get('/tracking', {
+      params: {
+        service_type: normalized,
+      },
+    });
     return response.data;
+  },
+
+  getAllAdmin: async () => {
+    try {
+      const response = await api.get('/admin/tracking');
+      return response.data;
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        const fallbackResponse = await api.get('/tracking');
+        return fallbackResponse.data;
+      }
+
+      throw error;
+    }
   },
 
   trackByCode: async (trackingCode) => {
@@ -35,8 +58,17 @@ const trackingService = {
       updated_by: data.UpdatedBy,
     };
 
-    const response = await api.post('/admin/tracking', payload);
-    return response.data;
+    try {
+      const response = await api.post('/admin/tracking', payload);
+      return response.data;
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        const fallbackResponse = await api.post('/tracking', payload);
+        return fallbackResponse.data;
+      }
+
+      throw error;
+    }
   },
 };
 
