@@ -58,11 +58,11 @@ const DashboardLayout = () => {
               </li>
             )}
 
-            {role === 'admin' && (
+            {(role === 'admin' || role === 'user') && (
               <li className="nav-item mb-2">
                 <Link
                   className="nav-link text-white"
-                  to="/admin/tracking"
+                  to={`/${role}/tracking`}
                 >
                   Tracking
                 </Link>

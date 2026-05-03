@@ -96,13 +96,28 @@ const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
 
 const authService = {
   register: async (data) => {
+    const nama = data.Nama || data.nama || data.name || '';
+    const email = data.Email || data.email || '';
+    const password = data.Password || data.password || '';
+    const noTelp = data.NoTelp || data.noTelp || data.no_telp || '';
+    const alamat = data.Alamat || data.alamat || '';
+    const role = data.Role || data.role || 'user';
+
     const payload = {
-      Nama: data.Nama || data.nama || data.name || '',
-      Email: data.Email || data.email || '',
-      Password: data.Password || data.password || '',
-      NoTelp: data.NoTelp || data.noTelp || data.no_telp || '',
-      Alamat: data.Alamat || data.alamat || '',
-      Role: data.Role || data.role || 'user',
+      // Keep multiple aliases to support different Gin binding/json tag styles.
+      Nama: nama,
+      nama,
+      Email: email,
+      email,
+      Password: password,
+      password,
+      NoTelp: noTelp,
+      noTelp,
+      no_telp: noTelp,
+      Alamat: alamat,
+      alamat,
+      Role: role,
+      role,
     };
 
     const response = await api.post('/auth/register', payload);
@@ -110,9 +125,14 @@ const authService = {
   },
 
   login: async (data) => {
+    const email = data.Email || data.email || '';
+    const password = data.Password || data.password || '';
+
     const payload = {
-      Email: data.Email || data.email || '',
-      Password: data.Password || data.password || '',
+      Email: email,
+      email,
+      Password: password,
+      password,
     };
 
     const response = await api.post('/auth/login', payload);

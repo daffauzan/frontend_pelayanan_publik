@@ -28,15 +28,22 @@ export const getUserRole = (user = null) => {
 export const mapSuratPayload = (form = {}) => {
   const payload = new FormData();
 
-  payload.append(
-    'JenisSurat',
+  const jenisSurat = (
     form.JenisSurat || form.jenisSurat || form.jenis_surat || ''
-  );
-  payload.append('Keperluan', form.Keperluan || form.keperluan || '');
+  ).trim();
+  const keperluan = (form.Keperluan || form.keperluan || '').trim();
+
+  // Send both naming styles to match backend bind tags (json/form) safely.
+  payload.append('JenisSurat', jenisSurat);
+  payload.append('jenis_surat', jenisSurat);
+
+  payload.append('Keperluan', keperluan);
+  payload.append('keperluan', keperluan);
 
   const file = form.FilePendukung || form.filePendukung || form.file_pendukung;
   if (file) {
     payload.append('FilePendukung', file);
+    payload.append('file_pendukung', file);
   }
 
   return payload;
@@ -45,13 +52,24 @@ export const mapSuratPayload = (form = {}) => {
 export const mapPengaduanPayload = (form = {}) => {
   const payload = new FormData();
 
-  payload.append('Judul', form.Judul || form.judul || '');
-  payload.append('Deskripsi', form.Deskripsi || form.deskripsi || '');
-  payload.append('Kategori', form.Kategori || form.kategori || '');
+  const judul = (form.Judul || form.judul || '').trim();
+  const deskripsi = (form.Deskripsi || form.deskripsi || '').trim();
+  const kategori = (form.Kategori || form.kategori || '').trim();
+
+  // Send both naming styles to match backend bind tags (json/form) safely.
+  payload.append('Judul', judul);
+  payload.append('judul', judul);
+
+  payload.append('Deskripsi', deskripsi);
+  payload.append('deskripsi', deskripsi);
+
+  payload.append('Kategori', kategori);
+  payload.append('kategori', kategori);
 
   const lampiran = form.Lampiran || form.lampiran;
   if (lampiran) {
     payload.append('Lampiran', lampiran);
+    payload.append('lampiran', lampiran);
   }
 
   return payload;
@@ -65,4 +83,59 @@ export const pickField = (item = {}, keys = []) => {
   }
 
   return '-';
+};
+
+export const resolveFileUrl = (rawPath = '') => {
+  if (!rawPath || rawPath === '-') {
+    return '';
+  }
+
+  const normalizedPath = String(rawPath).trim();
+  if (!normalizedPath) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(normalizedPath)) {
+    return normalizedPath;
+  }
+
+  const base = (import.meta.env.VITE_CLOUDFRONT_URL || '').trim();
+  if (!base) {
+    return normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+  }
+
+  const cleanedBase = base.replace(/\/+$/, '');
+  const cleanedPath = normalizedPath.replace(/^\/+/, '');
+  return `${cleanedBase}/${cleanedPath}`;
+};
+
+export const getFileNameFromPath = (rawPath = '') => {
+  if (!rawPath || rawPath === '-') {
+    return 'lampiran';
+  }
+
+  const normalizedPath = String(rawPath).trim().replace(/\/+$/, '');
+  if (!normalizedPath) {
+    return 'lampiran';
+  }
+
+  const lastSegment = normalizedPath.split('/').pop() || 'lampiran';
+  const safeName = lastSegment.split('?')[0].split('#')[0];
+  return safeName || 'lampiran';
+};
+
+export const getStatusLabel = (rawStatus = '') => {
+  const status = String(rawStatus || '').toLowerCase().trim();
+
+  const labels = {
+    pending: 'Menunggu',
+    processed: 'Diproses',
+    completed: 'Selesai',
+    rejected: 'Ditolak',
+    open: 'Baru',
+    in_progress: 'Diproses',
+    resolved: 'Selesai',
+  };
+
+  return labels[status] || (rawStatus || '-');
 };

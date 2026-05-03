@@ -12,6 +12,11 @@ const suratService = {
     return response.data;
   },
 
+  getAllAdmin: async () => {
+    const response = await api.get('/admin/surat');
+    return response.data;
+  },
+
   create: async (formData) => {
     const payload = mapSuratPayload(formData);
 
@@ -28,6 +33,16 @@ const suratService = {
     const response = await api.put(`/surat/${id}/status`, {
       Status: status,
       CatatanAdmin: catatanAdmin,
+    });
+    return response.data;
+  },
+
+  updateStatusAdmin: async (id, status, catatanAdmin = '') => {
+    const response = await api.put(`/admin/surat/${id}`, {
+      Status: status,
+      status,
+      CatatanAdmin: catatanAdmin,
+      catatan_admin: catatanAdmin,
     });
     return response.data;
   },

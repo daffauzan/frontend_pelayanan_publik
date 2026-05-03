@@ -12,6 +12,11 @@ const pengaduanService = {
     return response.data;
   },
 
+  getAllAdmin: async () => {
+    const response = await api.get('/admin/pengaduan');
+    return response.data;
+  },
+
   create: async (formData) => {
     const payload = mapPengaduanPayload(formData);
 
@@ -38,6 +43,22 @@ const pengaduanService = {
       ...payload,
     });
 
+    return response.data;
+  },
+
+  updateStatusAdmin: async (id, status, tanggapanAdmin = '') => {
+    const payload = {
+      Status: status,
+      status,
+      TanggapanAdmin: tanggapanAdmin,
+      tanggapan_admin: tanggapanAdmin,
+    };
+
+    if (status === 'resolved') {
+      payload.ResolvedAt = new Date().toISOString();
+    }
+
+    const response = await api.put(`/admin/pengaduan/${id}`, payload);
     return response.data;
   },
 
