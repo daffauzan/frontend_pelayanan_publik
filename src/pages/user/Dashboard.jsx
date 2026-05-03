@@ -1,24 +1,38 @@
 import { useEffect, useState } from 'react';
 import suratService from '../../services/suratService';
-import { pickField } from '../../utils/modelMapper';
+import pengaduanService from '../../services/pengaduanService';
+import { getStatusLabel, pickField } from '../../utils/modelMapper';
 
 const DashboardPage = () => {
   const [suratList, setSuratList] = useState([]);
+  const [pengaduanList, setPengaduanList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSurat = async () => {
+    const fetchData = async () => {
       try {
-        const response = await suratService.getAll();
-        setSuratList(response.data || []);
+        const [suratResponse, pengaduanResponse] = await Promise.all([
+          suratService.getAll(),
+          pengaduanService.getAll(),
+        ]);
+
+        const suratData = Array.isArray(suratResponse)
+          ? suratResponse
+          : (suratResponse?.data ?? []);
+        const pengaduanData = Array.isArray(pengaduanResponse)
+          ? pengaduanResponse
+          : (pengaduanResponse?.data ?? []);
+
+        setSuratList(suratData);
+        setPengaduanList(pengaduanData);
       } catch (error) {
-        console.error('Gagal memuat dashboard surat:', error);
+        console.error('Gagal memuat dashboard user:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSurat();
+    fetchData();
   }, []);
 
   return (
@@ -51,8 +65,45 @@ const DashboardPage = () => {
                       <td>{pickField(item, ['ID', 'id'])}</td>
                       <td>{pickField(item, ['JenisSurat', 'jenis_surat', 'jenisSurat'])}</td>
                       <td>{pickField(item, ['Keperluan', 'keperluan'])}</td>
-                      <td>{pickField(item, ['Status', 'status'])}</td>
+                      <td>{getStatusLabel(pickField(item, ['Status', 'status']))}</td>
                       <td>{pickField(item, ['SubmittedAt', 'CreatedAt', 'created_at'])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card mt-4">
+        <div className="card-body">
+          <h5 className="card-title mb-3">Daftar Pengaduan yang Diajukan</h5>
+
+          {loading ? (
+            <p className="text-muted mb-0">Memuat data pengaduan...</p>
+          ) : pengaduanList.length === 0 ? (
+            <p className="text-muted mb-0">Belum ada pengajuan pengaduan.</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Judul</th>
+                    <th>Kategori</th>
+                    <th>Status</th>
+                    <th>Tanggal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pengaduanList.map((item) => (
+                    <tr key={pickField(item, ['ID', 'id'])}>
+                      <td>{pickField(item, ['ID', 'id'])}</td>
+                      <td>{pickField(item, ['Judul', 'judul'])}</td>
+                      <td>{pickField(item, ['Kategori', 'kategori'])}</td>
+                      <td>{getStatusLabel(pickField(item, ['Status', 'status']))}</td>
+                      <td>{pickField(item, ['CreatedAt', 'created_at', 'createdAt'])}</td>
                     </tr>
                   ))}
                 </tbody>

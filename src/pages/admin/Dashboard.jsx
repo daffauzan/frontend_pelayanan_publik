@@ -18,12 +18,16 @@ const DashboardPage = () => {
     const fetchDashboardData = async () => {
       try {
         const [suratRes, pengaduanRes] = await Promise.all([
-          suratService.getAll(),
-          pengaduanService.getAll(),
+          suratService.getAllAdmin(),
+          pengaduanService.getAllAdmin(),
         ]);
 
-        const suratData = suratRes.data || [];
-        const pengaduanData = pengaduanRes.data || [];
+        const suratData = Array.isArray(suratRes)
+          ? suratRes
+          : (suratRes?.data ?? []);
+        const pengaduanData = Array.isArray(pengaduanRes)
+          ? pengaduanRes
+          : (pengaduanRes?.data ?? []);
 
         setSummary({
           totalSurat: suratData.length,
@@ -38,11 +42,17 @@ const DashboardPage = () => {
         });
 
         try {
-          const trackingRes = await trackingService.getAll();
-          setRecentTracking((trackingRes.data || []).slice(0, 5));
+          const trackingRes = await trackingService.getAllAdmin();
+          const trackingData = Array.isArray(trackingRes)
+            ? trackingRes
+            : (trackingRes?.data ?? []);
+          setRecentTracking(trackingData.slice(0, 5));
         } catch {
-          const historyRes = await trackingService.getHistory();
-          setRecentTracking((historyRes.data || []).slice(0, 5));
+          const historyRes = await trackingService.getAll();
+          const historyData = Array.isArray(historyRes)
+            ? historyRes
+            : (historyRes?.data ?? []);
+          setRecentTracking(historyData.slice(0, 5));
         }
       } catch (error) {
         console.error('Gagal memuat dashboard admin:', error);

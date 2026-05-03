@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import suratService from '../../services/suratService';
-import { pickField } from '../../utils/modelMapper';
+import {
+  getFileNameFromPath,
+  pickField,
+  resolveFileUrl,
+} from '../../utils/modelMapper';
 import trackingService from '../../services/trackingService';
 import useAuth from '../../hooks/useAuth';
 
@@ -18,8 +22,8 @@ const SuratManagementPage = () => {
 
   const loadData = async () => {
     try {
-      const response = await suratService.getAll();
-      const data = response.data || [];
+      const response = await suratService.getAllAdmin();
+      const data = Array.isArray(response) ? response : (response?.data ?? []);
       setSurat(data);
 
       const initialStatus = {};
@@ -48,7 +52,7 @@ const SuratManagementPage = () => {
     setMessage('');
 
     try {
-      await suratService.updateStatus(id, status, catatan);
+      await suratService.updateStatusAdmin(id, status, catatan);
 
       try {
         await trackingService.create({
@@ -88,9 +92,10 @@ const SuratManagementPage = () => {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>User ID</th>
+                  <th>Nama</th>
                   <th>Jenis Surat</th>
                   <th>Keperluan</th>
+                  <th>Lampiran</th>
                   <th>Status</th>
                   <th>Catatan Admin</th>
                   <th>Aksi</th>
@@ -99,13 +104,60 @@ const SuratManagementPage = () => {
               <tbody>
                 {surat.map((item) => {
                   const id = pickField(item, ['ID', 'id']);
+                  const userNameField = pickField(item, [
+                    'NamaUser',
+                    'nama_user',
+                    'UserNama',
+                    'user_nama',
+                    'UserName',
+                    'username',
+                    'Nama',
+                    'nama',
+                  ]);
+                  const userNameNested = item?.User?.Nama || item?.user?.nama || '';
+                  const userDisplay =
+                    userNameField !== '-'
+                      ? userNameField
+                      : (userNameNested || pickField(item, ['UserID', 'user_id']));
+                  const attachmentPath = pickField(item, [
+                    'FilePendukung',
+                    'file_pendukung',
+                    'filePendukung',
+                    'Lampiran',
+                    'lampiran',
+                  ]);
+                  const attachmentUrl = resolveFileUrl(attachmentPath);
+                  const attachmentName = getFileNameFromPath(attachmentPath);
 
                   return (
                     <tr key={id}>
                       <td>{id}</td>
-                      <td>{pickField(item, ['UserID', 'user_id'])}</td>
+                      <td>{userDisplay}</td>
                       <td>{pickField(item, ['JenisSurat', 'jenis_surat', 'jenisSurat'])}</td>
                       <td>{pickField(item, ['Keperluan', 'keperluan'])}</td>
+                      <td>
+                        {attachmentUrl ? (
+                          <div className="d-flex gap-2">
+                            <a
+                              href={attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-outline-secondary btn-sm"
+                            >
+                              Lihat
+                            </a>
+                            <a
+                              href={attachmentUrl}
+                              download={attachmentName}
+                              className="btn btn-outline-primary btn-sm"
+                            >
+                              Download
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-muted">Tidak ada</span>
+                        )}
+                      </td>
                       <td style={{ minWidth: '160px' }}>
                         <select
                           className="form-select"
@@ -117,10 +169,10 @@ const SuratManagementPage = () => {
                             }))
                           }
                         >
-                          <option value="pending">pending</option>
-                          <option value="processed">processed</option>
-                          <option value="completed">completed</option>
-                          <option value="rejected">rejected</option>
+                          <option value="pending">Pending</option>
+                          <option value="processed">Dalam Proses</option>
+                          <option value="completed">Selesai</option>
+                          <option value="rejected">Ditolak</option>
                         </select>
                       </td>
                       <td style={{ minWidth: '220px' }}>

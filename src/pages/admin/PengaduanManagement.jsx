@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import pengaduanService from '../../services/pengaduanService';
 import trackingService from '../../services/trackingService';
 import useAuth from '../../hooks/useAuth';
-import { pickField } from '../../utils/modelMapper';
+import {
+  getFileNameFromPath,
+  pickField,
+  resolveFileUrl,
+} from '../../utils/modelMapper';
 
 const PengaduanManagementPage = () => {
   const { user } = useAuth();
@@ -18,8 +22,8 @@ const PengaduanManagementPage = () => {
 
   const loadData = async () => {
     try {
-      const response = await pengaduanService.getAll();
-      const data = response.data || [];
+      const response = await pengaduanService.getAllAdmin();
+      const data = Array.isArray(response) ? response : (response?.data ?? []);
       setPengaduan(data);
 
       const initialStatus = {};
@@ -49,7 +53,7 @@ const PengaduanManagementPage = () => {
     setMessage('');
 
     try {
-      await pengaduanService.updateStatus(id, status, tanggapan);
+      await pengaduanService.updateStatusAdmin(id, status, tanggapan);
 
       try {
         await trackingService.create({
@@ -91,9 +95,10 @@ const PengaduanManagementPage = () => {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>User ID</th>
+                  <th>Nama</th>
                   <th>Judul</th>
                   <th>Kategori</th>
+                  <th>Lampiran</th>
                   <th>Status</th>
                   <th>Tanggapan Admin</th>
                   <th>Aksi</th>
@@ -102,13 +107,60 @@ const PengaduanManagementPage = () => {
               <tbody>
                 {pengaduan.map((item) => {
                   const id = pickField(item, ['ID', 'id']);
+                  const userNameField = pickField(item, [
+                    'NamaUser',
+                    'nama_user',
+                    'UserNama',
+                    'user_nama',
+                    'UserName',
+                    'username',
+                    'Nama',
+                    'nama',
+                  ]);
+                  const userNameNested = item?.User?.Nama || item?.user?.nama || '';
+                  const userDisplay =
+                    userNameField !== '-'
+                      ? userNameField
+                      : (userNameNested || pickField(item, ['UserID', 'user_id']));
+                  const attachmentPath = pickField(item, [
+                    'Lampiran',
+                    'lampiran',
+                    'FilePendukung',
+                    'file_pendukung',
+                    'filePendukung',
+                  ]);
+                  const attachmentUrl = resolveFileUrl(attachmentPath);
+                  const attachmentName = getFileNameFromPath(attachmentPath);
 
                   return (
                     <tr key={id}>
                       <td>{id}</td>
-                      <td>{pickField(item, ['UserID', 'user_id'])}</td>
+                      <td>{userDisplay}</td>
                       <td>{pickField(item, ['Judul', 'judul'])}</td>
                       <td>{pickField(item, ['Kategori', 'kategori'])}</td>
+                      <td>
+                        {attachmentUrl ? (
+                          <div className="d-flex gap-2">
+                            <a
+                              href={attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-outline-secondary btn-sm"
+                            >
+                              Lihat
+                            </a>
+                            <a
+                              href={attachmentUrl}
+                              download={attachmentName}
+                              className="btn btn-outline-primary btn-sm"
+                            >
+                              Download
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-muted">Tidak ada</span>
+                        )}
+                      </td>
                       <td style={{ minWidth: '160px' }}>
                         <select
                           className="form-select"
@@ -120,10 +172,10 @@ const PengaduanManagementPage = () => {
                             }))
                           }
                         >
-                          <option value="open">open</option>
-                          <option value="in_progress">in_progress</option>
-                          <option value="resolved">resolved</option>
-                          <option value="rejected">rejected</option>
+                          <option value="open">Dalam Pengajuan</option>
+                          <option value="in_progress">Dalam Proses</option>
+                          <option value="resolved">Selesai</option>
+                          <option value="rejected">Ditolak</option>
                         </select>
                       </td>
                       <td style={{ minWidth: '220px' }}>

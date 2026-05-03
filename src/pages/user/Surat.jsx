@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import suratService from '../../services/suratService';
-import { pickField } from '../../utils/modelMapper';
+import {
+  getFileNameFromPath,
+  getStatusLabel,
+  pickField,
+  resolveFileUrl,
+} from '../../utils/modelMapper';
 import SuratForm from '../../components/surat/SuratForm';
 
 const SuratPage = () => {
@@ -15,7 +20,8 @@ const SuratPage = () => {
   const fetchData = async () => {
     try {
       const response = await suratService.getAll();
-      setSurat(response.data);
+      const data = Array.isArray(response) ? response : (response?.data ?? []);
+      setSurat(data);
     } catch (error) {
       console.error('Gagal memuat data surat:', error);
     }
@@ -67,20 +73,56 @@ const SuratPage = () => {
                     <th>ID</th>
                     <th>Jenis Surat</th>
                     <th>Keperluan</th>
+                    <th>Lampiran</th>
                     <th>Status</th>
                     <th>Tanggal</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {surat.map((item) => (
-                    <tr key={item.ID || item.id}>
-                      <td>{pickField(item, ['ID', 'id'])}</td>
-                      <td>{pickField(item, ['JenisSurat', 'jenis_surat', 'jenisSurat'])}</td>
-                      <td>{pickField(item, ['Keperluan', 'keperluan'])}</td>
-                      <td>{pickField(item, ['Status', 'status'])}</td>
-                      <td>{pickField(item, ['SubmittedAt', 'CreatedAt', 'created_at'])}</td>
-                    </tr>
-                  ))}
+                  {surat.map((item) => {
+                    const attachmentPath = pickField(item, [
+                      'FilePendukung',
+                      'file_pendukung',
+                      'filePendukung',
+                      'Lampiran',
+                      'lampiran',
+                    ]);
+                    const attachmentUrl = resolveFileUrl(attachmentPath);
+                    const attachmentName = getFileNameFromPath(attachmentPath);
+
+                    return (
+                      <tr key={item.ID || item.id}>
+                        <td>{pickField(item, ['ID', 'id'])}</td>
+                        <td>{pickField(item, ['JenisSurat', 'jenis_surat', 'jenisSurat'])}</td>
+                        <td>{pickField(item, ['Keperluan', 'keperluan'])}</td>
+                        <td>
+                          {attachmentUrl ? (
+                            <div className="d-flex gap-2">
+                              <a
+                                href={attachmentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-outline-secondary btn-sm"
+                              >
+                                Lihat
+                              </a>
+                              <a
+                                href={attachmentUrl}
+                                download={attachmentName}
+                                className="btn btn-outline-primary btn-sm"
+                              >
+                                Download
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-muted">Tidak ada</span>
+                          )}
+                        </td>
+                        <td>{getStatusLabel(pickField(item, ['Status', 'status']))}</td>
+                        <td>{pickField(item, ['SubmittedAt', 'CreatedAt', 'created_at'])}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

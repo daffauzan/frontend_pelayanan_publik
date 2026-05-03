@@ -8,18 +8,14 @@ const SuratForm = ({ onSubmit, loading = false }) => {
   });
 
   const handleChange = (e) => {
-    const value = e.target.type === 'file' ? e.target.files[0] : e.target.value;
-
-    setForm({
-      ...form,
-      [e.target.name]: value,
-    });
+    const { name, type, value, files } = e.target;
+    const fieldValue = type === 'file' ? files[0] : value;
+    setForm((prev) => ({ ...prev, [name]: fieldValue }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(form);
-
+    await onSubmit(form);
     setForm({
       JenisSurat: '',
       Keperluan: '',
