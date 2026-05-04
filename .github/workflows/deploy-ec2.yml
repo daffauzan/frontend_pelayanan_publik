@@ -1,5 +1,8 @@
 name: Deploy Frontend to EC2
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -15,12 +18,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies
@@ -33,10 +36,11 @@ jobs:
           VITE_CLOUDFRONT_URL: ${{ vars.VITE_CLOUDFRONT_URL }}
         run: npm run build
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
 
       - name: Add EC2 to known hosts
         run: |
@@ -45,16 +49,16 @@ jobs:
 
       - name: Ensure deploy directory exists
         run: |
-          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
             "mkdir -p '${{ secrets.EC2_DEPLOY_PATH }}'"
 
       - name: Sync build artifacts to EC2
         run: |
-          rsync -az --delete dist/ \
+          rsync -az --delete -e "ssh -i ~/.ssh/ec2_key" dist/ \
             "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.EC2_DEPLOY_PATH }}/"
 
       - name: Optional post deploy command
         if: ${{ vars.EC2_POST_DEPLOY_CMD != '' }}
         run: |
-          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
             "${{ vars.EC2_POST_DEPLOY_CMD }}"
