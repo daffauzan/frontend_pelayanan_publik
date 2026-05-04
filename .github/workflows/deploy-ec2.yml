@@ -2,6 +2,8 @@ name: Deploy Frontend to EC2
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EC2_REPO_DIR: ~/frontend_pelayanan_publik
+  EC2_DEPLOY_PATH: /var/www/pelayanan_publik
 
 on:
   push:
@@ -17,25 +19,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend
-        env:
-          ASSET_PREFIX: ${{ vars.ASSET_PREFIX }}
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_CLOUDFRONT_URL: ${{ vars.VITE_CLOUDFRONT_URL }}
-        run: npm run build
-
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -47,15 +30,36 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Ensure deploy directory exists
+      - name: Pull, build, and deploy on EC2
         run: |
           ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
-            "mkdir -p '${{ secrets.EC2_DEPLOY_PATH }}'"
-
-      - name: Sync build artifacts to EC2
-        run: |
-          rsync -az --delete -e "ssh -i ~/.ssh/ec2_key" dist/ \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.EC2_DEPLOY_PATH }}/"
+            "set -e; \
+            REPO_DIR='${{ env.EC2_REPO_DIR }}'; \
+            DEPLOY_PATH='${{ env.EC2_DEPLOY_PATH }}'; \
+            REPO_URL='https://github.com/${{ github.repository }}.git'; \
+            BRANCH='${{ github.ref_name }}'; \
+            mkdir -p \"\$REPO_DIR\"; \
+            if [ -d \"\$REPO_DIR/.git\" ]; then \
+              cd \"\$REPO_DIR\"; \
+              git fetch origin; \
+              git checkout \"\$BRANCH\"; \
+              git pull --ff-only origin \"\$BRANCH\"; \
+            else \
+              rm -rf \"\$REPO_DIR\"; \
+              git clone --branch \"\$BRANCH\" \"\$REPO_URL\" \"\$REPO_DIR\"; \
+              cd \"\$REPO_DIR\"; \
+            fi; \
+            if ! command -v npm >/dev/null 2>&1; then \
+              echo 'npm tidak ditemukan di EC2. Install Node.js terlebih dahulu.'; \
+              exit 1; \
+            fi; \
+            export ASSET_PREFIX='${{ vars.ASSET_PREFIX }}'; \
+            export VITE_API_URL='${{ vars.VITE_API_URL }}'; \
+            export VITE_CLOUDFRONT_URL='${{ vars.VITE_CLOUDFRONT_URL }}'; \
+            npm ci; \
+            npm run build; \
+            sudo mkdir -p \"\$DEPLOY_PATH\"; \
+            sudo rsync -az --delete dist/ \"\$DEPLOY_PATH/\""
 
       - name: Optional post deploy command
         if: ${{ vars.EC2_POST_DEPLOY_CMD != '' }}
