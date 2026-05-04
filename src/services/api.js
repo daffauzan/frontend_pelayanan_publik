@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-const apiBaseUrl =
-  import.meta.env.PUBLIC_API_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8080/api';
+const envApiBaseUrl = import.meta.env.PUBLIC_API_URL || import.meta.env.VITE_API_URL;
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const apiBaseUrl = envApiBaseUrl || (isLocalhost ? 'http://localhost:8080/api' : '/api');
 
 const api = axios.create({
   baseURL: apiBaseUrl,
