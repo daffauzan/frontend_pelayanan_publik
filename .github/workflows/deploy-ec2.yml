@@ -2,6 +2,8 @@ name: Deploy Frontend to EC2
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EC2_HOST: ec2-3-27-124-5.ap-southeast-2.compute.amazonaws.com
+  EC2_USER: ubuntu
   EC2_REPO_DIR: ~/frontend_pelayanan_publik
   EC2_DEPLOY_PATH: /var/www/pelayanan_publik
 
@@ -28,11 +30,11 @@ jobs:
       - name: Add EC2 to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ env.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Pull, build, and deploy on EC2
         run: |
-          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+          ssh -i ~/.ssh/ec2_key "${{ env.EC2_USER }}@${{ env.EC2_HOST }}" \
             "set -e; \
             REPO_DIR='${{ env.EC2_REPO_DIR }}'; \
             DEPLOY_PATH='${{ env.EC2_DEPLOY_PATH }}'; \
@@ -54,7 +56,7 @@ jobs:
               exit 1; \
             fi; \
             export ASSET_PREFIX='${{ vars.ASSET_PREFIX }}'; \
-            export VITE_API_URL='${{ vars.VITE_API_URL }}'; \
+            export PUBLIC_API_URL='${{ vars.PUBLIC_API_URL || vars.VITE_API_URL }}'; \
             export VITE_CLOUDFRONT_URL='${{ vars.VITE_CLOUDFRONT_URL }}'; \
             npm ci; \
             npm run build; \
@@ -64,5 +66,5 @@ jobs:
       - name: Optional post deploy command
         if: ${{ vars.EC2_POST_DEPLOY_CMD != '' }}
         run: |
-          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+          ssh -i ~/.ssh/ec2_key "${{ env.EC2_USER }}@${{ env.EC2_HOST }}" \
             "${{ vars.EC2_POST_DEPLOY_CMD }}"
