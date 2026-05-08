@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { getUserRole } from '../../utils/modelMapper';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  const fromPath = location.state?.from?.pathname;
 
   const [form, setForm] = useState({
     email: '',
@@ -21,13 +24,12 @@ const LoginPage = () => {
 
     try {
       const response = await login(form);
-      const role = getUserRole(response.data?.user || response.user);
 
-      if (role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/user/dashboard');
-      }
+      const role = getUserRole(response.data?.user || response.user);
+      const defaultPath = role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+      const targetPath = fromPath || defaultPath;
+
+      navigate(targetPath, { replace: true });
     } catch (error) {
       alert(error.response?.data?.message || 'Login gagal');
     }

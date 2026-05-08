@@ -47,6 +47,43 @@ const extractBearerToken = (authorization = '') => {
     : authorization.trim();
 };
 
+const decodeJwtPayload = (token = '') => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+
+    if (typeof atob !== 'function') {
+      return null;
+    }
+
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const buildUserFromToken = (token = '') => {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const roleFromArray = Array.isArray(payload.roles) ? payload.roles[0] : payload.roles;
+
+  return normalizeUser({
+    id: payload.id ?? payload.ID ?? payload.user_id ?? payload.uid,
+    email: payload.email ?? payload.Email ?? payload.sub,
+    role: payload.role ?? payload.Role ?? roleFromArray,
+    nama: payload.nama ?? payload.Nama ?? payload.name,
+  });
+};
+
 const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
   const rawToken = findFirstByKeys(responseData, [
     'token',
@@ -156,6 +193,10 @@ const authService = {
       } catch {
         // Ignore profile fallback failure and continue with login response data.
       }
+    }
+
+    if (token && !user) {
+      user = buildUserFromToken(token);
     }
 
     if (user) {

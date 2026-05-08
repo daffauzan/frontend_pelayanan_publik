@@ -17,6 +17,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
+      - name: Test SSH Connection
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=no ubuntu@ec2-3-27-124-5.ap-southeast-2.compute.amazonaws.com "echo SSH_OK"
+
       - name: Deploy ke EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-27-124-5.ap-southeast-2.compute.amazonaws.com << 'EOF'
