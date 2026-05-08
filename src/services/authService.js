@@ -87,16 +87,20 @@ const buildUserFromToken = (token = '') => {
 const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
   const rawToken = findFirstByKeys(responseData, [
     'token',
+    'Token',
     'access_token',
     'accessToken',
+    'AccessToken',
     'jwt',
+    'JWT',
   ]);
 
+  const bodyToken = extractBearerToken(String(rawToken || ''));
   const headerToken = extractBearerToken(
     responseHeaders?.authorization || responseHeaders?.Authorization || ''
   );
 
-  const token = rawToken || headerToken || '';
+  const token = bodyToken || headerToken || '';
 
   const userCandidates = [
     responseData?.data?.user,
