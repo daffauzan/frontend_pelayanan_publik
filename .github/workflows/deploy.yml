@@ -19,8 +19,15 @@ jobs:
 
       - name: Deploy ke EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@IP_EC2 << 'EOF'
-          cd /var/www/nama-project
+          ssh -o StrictHostKeyChecking=no ubuntu@ec2-3-27-124-5.ap-southeast-2.compute.amazonaws.com << 'EOF'
+          set -e
+          cd ~/frontend_pelayanan_publik
           git pull origin master
+          export PUBLIC_API_URL='/api'
+          export VITE_API_URL='/api'
+          npm ci
+          npm run build
+          sudo mkdir -p /var/www/pelayanan_publik
+          sudo rsync -az --delete dist/ /var/www/pelayanan_publik/
           sudo systemctl restart nginx
           EOF

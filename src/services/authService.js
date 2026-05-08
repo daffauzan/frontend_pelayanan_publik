@@ -80,6 +80,7 @@ const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
     return (
       candidate.Role !== undefined ||
       candidate.role !== undefined ||
+      candidate.roles !== undefined ||
       candidate.Email !== undefined ||
       candidate.email !== undefined ||
       candidate.ID !== undefined ||
@@ -139,6 +140,11 @@ const authService = {
 
     let { token, user } = extractAuthFromResponse(response.data, response.headers);
 
+    // Persist token first so any follow-up /auth/profile request includes Authorization.
+    if (token) {
+      localStorage.setItem('token', token);
+    }
+
     if (token && !user) {
       try {
         const profileResponse = await api.get('/auth/profile');
@@ -150,10 +156,6 @@ const authService = {
       } catch {
         // Ignore profile fallback failure and continue with login response data.
       }
-    }
-
-    if (token) {
-      localStorage.setItem('token', token);
     }
 
     if (user) {
