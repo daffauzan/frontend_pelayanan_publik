@@ -23,18 +23,12 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await authService.getProfile();
         setUser(normalizeUser(response.data || response.user));
-      } catch (error) {
-        logout();
+      } catch {
+        localStorage.removeItem('user');
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -47,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const response = await authService.login(credentials);
     let normalizedUser = normalizeUser(response.data?.user || response.user);
 
-    if (!normalizedUser && localStorage.getItem('token')) {
+    if (!normalizedUser) {
       try {
         const profileResponse = await authService.getProfile();
         normalizedUser = normalizeUser(profileResponse.data || profileResponse.user);

@@ -1,107 +1,7 @@
 import api from './api';
 import { normalizeUser } from '../utils/modelMapper';
 
-const findFirstByKeys = (value, keys, depth = 0) => {
-  if (depth > 4 || value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const result = findFirstByKeys(item, keys, depth + 1);
-      if (result !== undefined) {
-        return result;
-      }
-    }
-
-    return undefined;
-  }
-
-  if (typeof value !== 'object') {
-    return undefined;
-  }
-
-  for (const key of keys) {
-    if (value[key] !== undefined && value[key] !== null && value[key] !== '') {
-      return value[key];
-    }
-  }
-
-  for (const nestedValue of Object.values(value)) {
-    const result = findFirstByKeys(nestedValue, keys, depth + 1);
-    if (result !== undefined) {
-      return result;
-    }
-  }
-
-  return undefined;
-};
-
-const extractBearerToken = (authorization = '') => {
-  if (typeof authorization !== 'string' || !authorization.trim()) {
-    return '';
-  }
-
-  return authorization.toLowerCase().startsWith('bearer ')
-    ? authorization.slice(7).trim()
-    : authorization.trim();
-};
-
-const decodeJwtPayload = (token = '') => {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) {
-      return null;
-    }
-
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-
-    if (typeof atob !== 'function') {
-      return null;
-    }
-
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-};
-
-const buildUserFromToken = (token = '') => {
-  const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  const roleFromArray = Array.isArray(payload.roles) ? payload.roles[0] : payload.roles;
-
-  return normalizeUser({
-    id: payload.id ?? payload.ID ?? payload.user_id ?? payload.uid,
-    email: payload.email ?? payload.Email ?? payload.sub,
-    role: payload.role ?? payload.Role ?? roleFromArray,
-    nama: payload.nama ?? payload.Nama ?? payload.name,
-  });
-};
-
-const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
-  const rawToken = findFirstByKeys(responseData, [
-    'token',
-    'Token',
-    'access_token',
-    'accessToken',
-    'AccessToken',
-    'jwt',
-    'JWT',
-  ]);
-
-  const bodyToken = extractBearerToken(String(rawToken || ''));
-  const headerToken = extractBearerToken(
-    responseHeaders?.authorization || responseHeaders?.Authorization || ''
-  );
-
-  const token = bodyToken || headerToken || '';
-
+const extractAuthFromResponse = (responseData = {}) => {
   const userCandidates = [
     responseData?.data?.user,
     responseData?.user,
@@ -133,7 +33,7 @@ const extractAuthFromResponse = (responseData = {}, responseHeaders = {}) => {
 
   const user = normalizeUser(rawUser);
 
-  return { token, user };
+  return { user };
 };
 
 const authService = {
@@ -179,14 +79,9 @@ const authService = {
 
     const response = await api.post('/auth/login', payload);
 
-    let { token, user } = extractAuthFromResponse(response.data, response.headers);
+    let { user } = extractAuthFromResponse(response.data);
 
-    // Persist token first so any follow-up /auth/profile request includes Authorization.
-    if (token) {
-      localStorage.setItem('token', token);
-    }
-
-    if (token && !user) {
+    if (!user) {
       try {
         const profileResponse = await api.get('/auth/profile');
         user = normalizeUser(
@@ -199,10 +94,6 @@ const authService = {
       }
     }
 
-    if (token && !user) {
-      user = buildUserFromToken(token);
-    }
-
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
     }
@@ -211,16 +102,19 @@ const authService = {
       ...response.data,
       data: {
         ...(response.data?.data || {}),
-        token,
         user,
       },
       user,
-      token,
     };
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore logout API failures and clear local auth state anyway.
+    }
+
     localStorage.removeItem('user');
   },
 
