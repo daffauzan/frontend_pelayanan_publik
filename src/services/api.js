@@ -32,8 +32,9 @@ api.interceptors.response.use(
   (error) => {
     const requestUrl = String(error?.config?.url || '');
     const isAuthEndpoint = requestUrl.includes('/auth/');
+    const isProfileEndpoint = /\/auth\/profile(?:\?|$)/.test(requestUrl);
 
-    if (error?.response?.status === 401 && isAuthEndpoint) {
+    if (error?.response?.status === 401 && isAuthEndpoint && !isProfileEndpoint) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
 
