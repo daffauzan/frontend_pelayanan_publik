@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+const SESSION_FLAG_KEY = 'session_active';
+
 const envApiBaseUrl = import.meta.env.PUBLIC_API_URL || import.meta.env.VITE_API_URL;
 const isLocalhost =
   typeof window !== 'undefined' &&
@@ -23,6 +25,7 @@ api.interceptors.response.use(
 
     if (error?.response?.status === 401 && !isLoginOrRegister && !isProfileEndpoint) {
       localStorage.removeItem('user');
+      localStorage.removeItem(SESSION_FLAG_KEY);
 
       const currentPath = window.location.pathname;
       const isProtectedPath = currentPath.startsWith('/user') || currentPath.startsWith('/admin');

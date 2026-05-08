@@ -1,6 +1,7 @@
 import api from './api';
 import { normalizeUser } from '../utils/modelMapper';
 
+const SESSION_FLAG_KEY = 'session_active';
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const extractAuthFromResponse = (responseData = {}) => {
@@ -89,6 +90,7 @@ const authService = {
     };
 
     const response = await api.post('/auth/login', payload);
+    localStorage.setItem(SESSION_FLAG_KEY, '1');
 
     let { user } = extractAuthFromResponse(response.data);
 
@@ -143,6 +145,7 @@ const authService = {
     }
 
     localStorage.removeItem('user');
+    localStorage.removeItem(SESSION_FLAG_KEY);
   },
 
   getProfile: async () => {

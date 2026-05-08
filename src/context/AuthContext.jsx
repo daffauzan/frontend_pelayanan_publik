@@ -8,6 +8,7 @@ import authService from '../services/authService';
 import { normalizeUser } from '../utils/modelMapper';
 
 const AuthContext = createContext();
+const SESSION_FLAG_KEY = 'session_active';
 
 const getStoredUser = () => {
   try {
@@ -23,11 +24,20 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      const hasStoredUser = !!getStoredUser();
+      const hasSessionHint = localStorage.getItem(SESSION_FLAG_KEY) === '1';
+
+      if (!hasStoredUser && !hasSessionHint) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await authService.getProfile();
         setUser(normalizeUser(response.data || response.user));
       } catch {
         localStorage.removeItem('user');
+        localStorage.removeItem(SESSION_FLAG_KEY);
         setUser(null);
       } finally {
         setLoading(false);
@@ -78,7 +88,7 @@ export const AuthProvider = ({ children }) => {
         register,
         updateProfile,
         logout,
-        isAuthenticated: !!user || !!getStoredUser(),
+        isAuthenticated: !!user || !!getStoredUser() || localStorage.getItem(SESSION_FLAG_KEY) === '1',
       }}
     >
       {children}
