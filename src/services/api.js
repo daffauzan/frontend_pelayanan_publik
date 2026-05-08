@@ -19,12 +19,14 @@ api.interceptors.response.use(
   (error) => {
     const requestUrl = String(error?.config?.url || '');
     const isLoginOrRegister = /\/auth\/(login|register)(?:\?|$)/.test(requestUrl);
+    const isProfileEndpoint = /\/auth\/profile(?:\?|$)/.test(requestUrl);
 
-    if (error?.response?.status === 401 && !isLoginOrRegister) {
+    if (error?.response?.status === 401 && !isLoginOrRegister && !isProfileEndpoint) {
       localStorage.removeItem('user');
 
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/register') {
+      const isProtectedPath = currentPath.startsWith('/user') || currentPath.startsWith('/admin');
+      if (isProtectedPath && currentPath !== '/login' && currentPath !== '/register') {
         window.location.replace('/login');
       }
     }
