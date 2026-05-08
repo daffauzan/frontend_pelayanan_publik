@@ -45,7 +45,18 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     const response = await authService.login(credentials);
-    setUser(normalizeUser(response.data?.user || response.user));
+    let normalizedUser = normalizeUser(response.data?.user || response.user);
+
+    if (!normalizedUser && localStorage.getItem('token')) {
+      try {
+        const profileResponse = await authService.getProfile();
+        normalizedUser = normalizeUser(profileResponse.data || profileResponse.user);
+      } catch {
+        // Keep the original response handling if profile fetch is unavailable.
+      }
+    }
+
+    setUser(normalizedUser);
     return response;
   };
 

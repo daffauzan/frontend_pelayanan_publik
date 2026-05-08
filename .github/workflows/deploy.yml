@@ -1,0 +1,26 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Deploy ke EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@IP_EC2 << 'EOF'
+          cd /var/www/nama-project
+          git pull origin master
+          sudo systemctl restart nginx
+          EOF
