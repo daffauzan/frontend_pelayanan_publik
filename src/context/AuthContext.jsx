@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         register,
         updateProfile,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user || !!getStoredUser(),
       }}
     >
       {children}

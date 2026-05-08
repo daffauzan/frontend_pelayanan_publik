@@ -1,6 +1,8 @@
 import api from './api';
 import { normalizeUser } from '../utils/modelMapper';
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const extractAuthFromResponse = (responseData = {}) => {
   const userCandidates = [
     responseData?.data?.user,
@@ -31,7 +33,16 @@ const extractAuthFromResponse = (responseData = {}) => {
     );
   });
 
-  const user = normalizeUser(rawUser);
+  const fallbackRawUser =
+    rawUser ||
+    (responseData?.data && typeof responseData.data === 'object' && !Array.isArray(responseData.data)
+      ? responseData.data
+      : null) ||
+    (responseData && typeof responseData === 'object' && !Array.isArray(responseData)
+      ? responseData
+      : null);
+
+  const user = normalizeUser(fallbackRawUser);
 
   return { user };
 };
@@ -82,16 +93,32 @@ const authService = {
     let { user } = extractAuthFromResponse(response.data);
 
     if (!user) {
-      try {
-        const profileResponse = await api.get('/auth/profile');
-        user = normalizeUser(
-          profileResponse.data?.data ||
-            profileResponse.data?.user ||
-            profileResponse.data
-        );
-      } catch {
-        // Ignore profile fallback failure and continue with login response data.
+      const retryDelays = [0, 150, 300];
+
+      for (const delay of retryDelays) {
+        if (delay > 0) {
+          await wait(delay);
+        }
+
+        try {
+          const profileResponse = await api.get('/auth/profile');
+          user = normalizeUser(
+            profileResponse.data?.data ||
+              profileResponse.data?.user ||
+              profileResponse.data
+          );
+
+          if (user) {
+            break;
+          }
+        } catch {
+          // Retry shortly because some backends persist session cookie asynchronously.
+        }
       }
+    }
+
+    if (!user) {
+      user = normalizeUser({ role: 'user' });
     }
 
     if (user) {
